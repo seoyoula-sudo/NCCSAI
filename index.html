@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f4ff">
+    <title>제비뽑기</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #24213a;
+        background: #f5f4ff;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        padding: 48px 20px;
+        display: grid;
+        place-items: center;
+      }
+
+      main {
+        width: min(100%, 560px);
+        padding: 36px;
+        border: 1px solid #e8e5f5;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 18px 55px rgb(46 36 94 / 9%);
+      }
+
+      header { margin-bottom: 30px; text-align: center; }
+      .icon { font-size: 42px; }
+      h1 { margin: 8px 0; font-size: 30px; }
+      header p, .hint { margin: 0; color: #77748a; }
+      label { display: block; margin-bottom: 10px; font-size: 15px; font-weight: 700; }
+
+      textarea {
+        width: 100%;
+        min-height: 180px;
+        resize: vertical;
+        padding: 14px 16px;
+        border: 1px solid #dedbea;
+        border-radius: 12px;
+        font: inherit;
+        line-height: 1.7;
+      }
+
+      textarea:focus, input:focus {
+        outline: 3px solid rgb(111 87 235 / 18%);
+        border-color: #765dea;
+      }
+
+      .hint { margin-top: 8px; font-size: 13px; }
+      .options {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin: 24px 0;
+      }
+
+      .options label { margin: 0; }
+      input[type="number"] {
+        width: 88px;
+        padding: 10px;
+        border: 1px solid #dedbea;
+        border-radius: 10px;
+        font: inherit;
+        text-align: center;
+      }
+
+      .buttons { display: flex; gap: 10px; }
+      button {
+        min-height: 48px;
+        border: 0;
+        border-radius: 12px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      button:focus-visible { outline: 3px solid #b6a8ff; outline-offset: 2px; }
+      button:disabled { cursor: not-allowed; opacity: .55; }
+      #draw { flex: 1; color: #fff; background: #7056e8; }
+      #draw:hover:not(:disabled) { background: #5d43d2; }
+      #reset { padding: 0 20px; color: #514d63; background: #f0eef6; }
+
+      #message {
+        min-height: 24px;
+        margin: 16px 0 0;
+        color: #b33a54;
+        font-size: 14px;
+      }
+
+      .results { margin-top: 24px; }
+      .results h2 { margin: 0 0 12px; font-size: 18px; }
+      #winners { display: flex; flex-wrap: wrap; gap: 8px; }
+      .winner {
+        padding: 9px 14px;
+        border-radius: 999px;
+        color: #523dc1;
+        background: #f0edff;
+        font-weight: 700;
+      }
+      [hidden] { display: none !important; }
+
+      @media (max-width: 480px) {
+        body { padding: 20px 14px; }
+        main { padding: 26px 20px; }
+        h1 { font-size: 26px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="icon" aria-hidden="true">🎟️</div>
+        <h1>제비뽑기</h1>
+        <p>이름을 적고 오늘의 행운을 뽑아보세요!</p>
+      </header>
+
+      <label for="participants">참가자 이름</label>
+      <textarea id="participants" placeholder="이름을 한 줄에 하나씩 입력하세요&#10;예:&#10;김민지&#10;이서준&#10;박하늘"></textarea>
+      <p class="hint">줄바꿈 또는 쉼표로 이름을 구분할 수 있어요.</p>
+
+      <div class="options">
+        <label for="winner-count">뽑을 인원</label>
+        <input id="winner-count" type="number" min="1" value="1" inputmode="numeric">
+      </div>
+
+      <div class="buttons">
+        <button id="draw" type="button">🎉 추첨하기</button>
+        <button id="reset" type="button">초기화</button>
+      </div>
+      <p id="message" role="status" aria-live="polite"></p>
+
+      <section id="results" class="results" aria-labelledby="results-title" hidden>
+        <h2 id="results-title">당첨자</h2>
+        <div id="winners"></div>
+      </section>
+    </main>
+
+    <script>
+      const participantsInput = document.querySelector("#participants");
+      const winnerCountInput = document.querySelector("#winner-count");
+      const drawButton = document.querySelector("#draw");
+      const resetButton = document.querySelector("#reset");
+      const message = document.querySelector("#message");
+      const results = document.querySelector("#results");
+      const winnersElement = document.querySelector("#winners");
+
+      function getParticipants() {
+        return [...new Set(
+          participantsInput.value
+            .split(/[\n,]+/)
+            .map((name) => name.trim())
+            .filter(Boolean)
+        )];
+      }
+
+      function drawWinners() {
+        const participants = getParticipants();
+        const winnerCount = Number(winnerCountInput.value);
+        message.textContent = "";
+        results.hidden = true;
+        winnersElement.replaceChildren();
+
+        if (participants.length === 0) {
+          message.textContent = "참가자 이름을 한 명 이상 입력해 주세요.";
+          return;
+        }
+
+        if (!Number.isInteger(winnerCount) || winnerCount < 1) {
+          message.textContent = "뽑을 인원은 1명 이상으로 입력해 주세요.";
+          return;
+        }
+
+        if (winnerCount > participants.length) {
+          message.textContent = `참가자는 ${participants.length}명인데 ${winnerCount}명을 뽑을 수는 없어요.`;
+          return;
+        }
+
+        for (let i = participants.length - 1; i > 0; i--) {
+          const randomIndex = Math.floor(Math.random() * (i + 1));
+          [participants[i], participants[randomIndex]] = [participants[randomIndex], participants[i]];
+        }
+
+        participants.slice(0, winnerCount).forEach((name) => {
+          const winner = document.createElement("span");
+          winner.className = "winner";
+          winner.textContent = name;
+          winnersElement.append(winner);
+        });
+        results.hidden = false;
+      }
+
+      function reset() {
+        participantsInput.value = "";
+        winnerCountInput.value = "1";
+        message.textContent = "";
+        winnersElement.replaceChildren();
+        results.hidden = true;
+        participantsInput.focus();
+      }
+
+      drawButton.addEventListener("click", drawWinners);
+      resetButton.addEventListener("click", reset);
+      participantsInput.addEventListener("input", () => {
+        drawButton.disabled = getParticipants().length === 0;
+      });
+      drawButton.disabled = true;
+    </script>
+  </body>
+</html>
