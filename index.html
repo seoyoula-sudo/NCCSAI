@@ -228,6 +228,7 @@
 
         if (participants.length === 0) {
           message.textContent = "참가자 이름을 한 명 이상 입력해 주세요.";
+          participantsInput.focus();
           return;
         }
 
@@ -269,10 +270,6 @@
       themeToggle.addEventListener("click", () => {
         setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
       });
-      participantsInput.addEventListener("input", () => {
-        drawButton.disabled = getParticipants().length === 0;
-      });
-      drawButton.disabled = true;
     </script>
   </body>
 </html>
